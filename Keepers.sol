@@ -19,11 +19,13 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
     uint16 requestConfirmations = 3;
     uint256[] public s_randomWords;
     uint256 public s_requestId;
-    uint32 callbackGasLimit = 150000;
+    uint32 callbackGasLimit = 1000000;
     uint32 numWords = 1;
 
-    mapping (uint => bool) public bigPrize; //7 Ether
-    mapping (uint => bool) public mediumPrize; //0.1 Ether
+    mapping (uint256 => address) requestToSender;
+
+    //mapping (uint => bool) public bigPrize; //7 Ether
+    //mapping (uint => bool) public mediumPrize; //0.1 Ether
 
     //For Rinkeby Test Network:
     address vrfCoordinator = 0x6168499c0cFfCaCD319c818142124B7A15E857ab;
@@ -48,13 +50,12 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
         subscriptionId = _subscriptionId;
     }
 
-    function safeMint(address to) internal {
+    function safeMint(address to, string memory uri) internal {
         //require(msg.value == 0.001 ether); //Mint price is 1 Ether
-        uint256 randomValue = (s_randomWords[0] % 7) + 1;
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
         _safeMint(to, tokenId);
-        _setTokenURI(tokenId, bombIPFS[randomValue]);
+        _setTokenURI(tokenId, uri);
     }
 
     function getContractBalance() view public returns(uint){
@@ -71,14 +72,17 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
         callbackGasLimit,
         numWords
         );
+
+        requestToSender[s_requestId] = msg.sender;
     }
 
     function fulfillRandomWords(
-        uint256, /* requestId */
+        uint256 requestID,
         uint256[] memory randomWords
     ) internal override {
         s_randomWords = randomWords;
-
+        uint256 randomValue = (s_randomWords[0] % 7) + 1;
+        safeMint(requestToSender[requestID], bombIPFS[randomValue]);
     }
 
     modifier onlyOwner() {
