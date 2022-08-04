@@ -7,18 +7,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-/*
-enum Colors {
-        PACKAGE,
-        BLUE,
-        GREEN,
-        ORANGE,
-        PINK,
-        PURPLE,
-        RED,
-        YELLOW
-    }
-*/
+
 contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIdCounter;
@@ -42,9 +31,9 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
 
     //For Rinkeby Test Network:
     address vrfCoordinator = 0x6168499c0cFfCaCD319c818142124B7A15E857ab;
-    //address LinkToken = 0x01BE23585060835E02B77ef475b0Cc51aA1e0709;
 
-    uint256[7] referenceArray = [
+/*
+    uint256[] private referenceArray = [
         1, //Blue
         2, //Green
         3, //Orange
@@ -53,8 +42,30 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
         6, //Red
         7 //Yellow
     ];
-
-    string[7] bombIPFS = [
+*/
+    //Array of the remaining colors which did not explode
+    uint256[] public dynamicArray = [
+        1, //Blue
+        2, //Green
+        3, //Orange
+        4, //Pink
+        5, //Purple
+        6, //Red
+        7 //Yellow
+    ];
+/*
+    string[] private bombIPFSReference = [
+        "blue.ipfs",
+        "green.ipfs",
+        "orange.ipfs",
+        "pink.ipfs",
+        "purple.ipfs",
+        "red.ipfs",
+        "yellow.ipfs"
+    ];
+*/
+    //Array of the remaining tokenURIs
+    string[] public bombIPFSDynamic = [
         "blue.ipfs",
         "green.ipfs",
         "orange.ipfs",
@@ -78,10 +89,6 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
         requestRandomWords(tokenId);
     }
 
-    function getContractBalance() view public returns(uint){
-        return address(this).balance;
-    }
-
     // Assumes the subscription is funded sufficiently.
     // Will revert if subscription is not set and funded.
 
@@ -89,7 +96,6 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
     // Assigns colors to the NFTs randomly.
     
     function requestRandomWords(uint256 tokenID) internal {
-        //require(tokenIDtoColor[tokenID] == 1); 
         uint256 s_requestId = COORDINATOR.requestRandomWords(
         keyHash,
         subscriptionId,
@@ -105,8 +111,18 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
         uint256 requestID,
         uint256[] memory randomWords
     ) internal override {
-        uint256 randomValue = (randomWords[0] % 7) + 1;
-        _setTokenURI(requestToTokenID[requestID], bombIPFS[randomValue]);
+        uint256 randomValue = (randomWords[0] % dynamicArray.length) + 1;
+        _setTokenURI(requestToTokenID[requestID], bombIPFSDynamic[randomValue]);
+        tokenIDtoColor[requestToTokenID[requestID]] = dynamicArray[randomValue];
+    }
+
+    function remove(uint256 index) internal {
+        dynamicArray[index] = dynamicArray[dynamicArray.length - 1];
+        dynamicArray.pop();
+    }
+
+    function getContractBalance() view public returns(uint){
+        return address(this).balance;
     }
 
     // The following functions (burn and tokenURI) are overrides required by Solidity.
