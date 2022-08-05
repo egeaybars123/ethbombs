@@ -27,7 +27,9 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
         be minted in a day.
     */
     uint256 dayIndex = 1;
-    uint dailyLeft = 3; //Number of NFTs left for the day. 
+    uint256 dailyLeft = 3; //Number of NFTs left for the day.
+    uint256 lastRandomforExplode;
+    bool readyForExplode = false;
 
     mapping (uint256 => uint256) requestToTokenID;
     mapping (uint256 => uint256) tokenIDtoColor;
@@ -48,7 +50,7 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
         6, //Red
         7 //Yellow
     ];
-
+    
     //Array of the remaining tokenURIs
     string[] public bombIPFSDynamic = [
         "blue.ipfs",
@@ -99,14 +101,37 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
         uint256 requestID,
         uint256[] memory randomWords
     ) internal override {
-        uint256 randomValue = (randomWords[0] % dynamicArray.length) + 1;
-        _setTokenURI(requestToTokenID[requestID], bombIPFSDynamic[randomValue]);
-        tokenIDtoColor[requestToTokenID[requestID]] = dynamicArray[randomValue];
+
+        if (!readyForExplode) {
+            uint256 randomValue = (randomWords[0] % dynamicArray.length) + 1;
+            uint256 color = dynamicArray[randomValue];
+            _setTokenURI(requestToTokenID[requestID], bombIPFSDynamic[color - 1]);
+            tokenIDtoColor[requestToTokenID[requestID]] = dynamicArray[randomValue];
+        }
+        else {
+            uint256 randomValue = (randomWords[0] % dynamicArray.length) + 1;
+            removeColor(randomValue);
+        }
+        
     }
 
-    function remove(uint256 index) internal {
+    /*
+        Triggered by Chainlink Keepers every day to reset
+        the maximum amount of NFTs that can be minted and 
+        increment the number of days.
+    */
+    function keepersTrigger() internal {
+        dayIndex++;
+        dailyLeft = 3;
+    }
+
+    function removeColor(uint256 index) internal {
         dynamicArray[index] = dynamicArray[dynamicArray.length - 1];
         dynamicArray.pop();
+        /*
+        bombIPFSDynamic[index] = bombIPFSDynamic[bombIPFSDynamic.length - 1];
+        bombIPFSDynamic.pop();
+        */
     }
 
     function getContractBalance() view public returns(uint){
