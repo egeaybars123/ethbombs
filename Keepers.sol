@@ -12,8 +12,6 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIdCounter;
 
-    //address public owner;
-
     VRFCoordinatorV2Interface COORDINATOR;
     uint64 subscriptionId;
     bytes32 internal keyHash = 0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc;
@@ -22,6 +20,14 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
     //uint256 public s_requestId;
     uint32 callbackGasLimit = 100000;
     uint32 numWords = 1;
+
+    /*
+        Counting how many days passed till the start.
+        This will be important to limit how many NFTs could
+        be minted in a day.
+    */
+    uint256 dayIndex = 1;
+    uint dailyLeft = 3; //Number of NFTs left for the day. 
 
     mapping (uint256 => uint256) requestToTokenID;
     mapping (uint256 => uint256) tokenIDtoColor;
@@ -32,17 +38,6 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
     //For Rinkeby Test Network:
     address vrfCoordinator = 0x6168499c0cFfCaCD319c818142124B7A15E857ab;
 
-/*
-    uint256[] private referenceArray = [
-        1, //Blue
-        2, //Green
-        3, //Orange
-        4, //Pink
-        5, //Purple
-        6, //Red
-        7 //Yellow
-    ];
-*/
     //Array of the remaining colors which did not explode
     uint256[] public dynamicArray = [
         1, //Blue
@@ -53,17 +48,7 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
         6, //Red
         7 //Yellow
     ];
-/*
-    string[] private bombIPFSReference = [
-        "blue.ipfs",
-        "green.ipfs",
-        "orange.ipfs",
-        "pink.ipfs",
-        "purple.ipfs",
-        "red.ipfs",
-        "yellow.ipfs"
-    ];
-*/
+
     //Array of the remaining tokenURIs
     string[] public bombIPFSDynamic = [
         "blue.ipfs",
@@ -83,6 +68,8 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
 
     function safeMint(address to) public payable {
         require(msg.value == 1000000000000000, "Not enough ETH sent"); //Mint price is 0.001 Ether
+        require(dailyLeft > 0, "Maximum number reached for the day"); //Max number of NFTs that could be minted in a day
+        require(dayIndex <= 7, "Max supply reached"); //After day 7, NFTs cannot be minted.
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
         _safeMint(to, tokenId);
@@ -104,7 +91,8 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
         numWords
         );
         
-        requestToTokenID[s_requestId] = tokenID; //check if only owner can change.
+        requestToTokenID[s_requestId] = tokenID;
+        dailyLeft--;
     }
 
     function fulfillRandomWords(
