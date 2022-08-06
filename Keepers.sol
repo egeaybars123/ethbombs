@@ -71,7 +71,7 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
     function safeMint(address to) public payable {
         require(msg.value == 1000000000000000, "Not enough ETH sent"); //Mint price is 0.001 Ether
         require(dailyLeft > 0, "Maximum number reached for the day"); //Max number of NFTs that could be minted in a day
-        require(dayIndex <= 7, "Max supply reached"); //After day 7, NFTs cannot be minted.
+        require(dayIndex <= 7, "Event over"); //After day 7, NFTs cannot be minted.
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
         _safeMint(to, tokenId);
@@ -123,6 +123,7 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
     function keepersTrigger() internal {
         dayIndex++;
         dailyLeft = 3;
+        readyForExplode = true;
     }
 
     function removeColor(uint256 index) internal {
