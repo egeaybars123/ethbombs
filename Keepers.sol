@@ -18,7 +18,7 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
     uint16 requestConfirmations = 3;
     //uint256[] public s_randomWords;
     //uint256 public s_requestId;
-    uint32 callbackGasLimit = 100000;
+    uint32 callbackGasLimit = 120000;
     uint32 numWords = 1;
 
     /*
@@ -27,12 +27,12 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
         be minted in a day.
     */
     uint256 dayIndex = 1;
-    uint256 dailyLeft = 3; //Number of NFTs left for the day.
+    uint256 dailyLeft = 1; //Number of NFTs left for the day. //1111
     uint256 lastRandomforExplode;
     bool readyForExplode = false;
 
     mapping (uint256 => uint256) requestToTokenID;
-    mapping (uint256 => uint256) tokenIDtoColor;
+    mapping (uint256 => uint256) tokenIDtoColorID;
 
     //mapping (uint => bool) public bigPrize; //7 Ether
     //mapping (uint => bool) public mediumPrize; //0.1 Ether
@@ -42,13 +42,13 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
 
     //Array of the remaining colors which did not explode
     uint256[] public dynamicArray = [
-        1, //Blue
-        2, //Green
-        3, //Orange
-        4, //Pink
-        5, //Purple
-        6, //Red
-        7 //Yellow
+        3, //Blue //7000
+        6, //Green //14000
+        9, //Orange //21000
+        12, //Pink //28000
+        15, //Purple //35000
+        18, //Red //42000
+        21 //Yellow //49000
     ];
     
     //Array of the remaining tokenURIs
@@ -104,9 +104,11 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
 
         if (!readyForExplode) {
             uint256 randomValue = (randomWords[0] % dynamicArray.length) + 1;
-            uint256 color = dynamicArray[randomValue];
-            _setTokenURI(requestToTokenID[requestID], bombIPFSDynamic[color - 1]);
-            tokenIDtoColor[requestToTokenID[requestID]] = dynamicArray[randomValue];
+            uint256 colorID = dynamicArray[randomValue];
+            uint256 tokenID = requestToTokenID[requestID];
+            _setTokenURI(tokenID, bombIPFSDynamic[(colorID / 3) - 1]); //Divide by 7000
+            tokenIDtoColorID[tokenID] = colorID;
+            dynamicArray[randomValue] += 1;
         }
         else {
             uint256 randomValue = (randomWords[0] % dynamicArray.length) + 1;
@@ -122,17 +124,22 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
     */
     function keepersTrigger() internal {
         dayIndex++;
-        dailyLeft = 3;
+        dailyLeft = 1; //1111
         readyForExplode = true;
+        
+        //Request random words for explosion.
+        COORDINATOR.requestRandomWords(
+        keyHash,
+        subscriptionId,
+        requestConfirmations,
+        callbackGasLimit,
+        numWords
+        );
     }
 
     function removeColor(uint256 index) internal {
         dynamicArray[index] = dynamicArray[dynamicArray.length - 1];
         dynamicArray.pop();
-        /*
-        bombIPFSDynamic[index] = bombIPFSDynamic[bombIPFSDynamic.length - 1];
-        bombIPFSDynamic.pop();
-        */
     }
 
     function getContractBalance() view public returns(uint){
