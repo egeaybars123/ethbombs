@@ -1,22 +1,22 @@
 //SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.7;
 
+import "@chainlink/contracts/src/v0.8/KeeperCompatible.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
 
-contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
+contract BombsNFT is ERC721, ERC721URIStorage, VRFConsumerBaseV2, KeeperCompatible {
     using Counters for Counters.Counter;
-    Counters.Counter private _tokenIdCounter;
+    Counters.Counter public _tokenIdCounter;
 
     VRFCoordinatorV2Interface COORDINATOR;
     uint64 subscriptionId;
     bytes32 internal keyHash = 0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc;
     uint16 requestConfirmations = 3;
-    //uint256[] public s_randomWords;
+    uint256[1] public randomWordsForRewards;
     //uint256 public s_requestId;
     uint32 callbackGasLimit = 120000;
     uint32 numWords = 1;
@@ -26,29 +26,24 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
         This will be important to limit how many NFTs could
         be minted in a day.
     */
-    uint256 dayIndex = 1;
-    uint256 dailyLeft = 1; //Number of NFTs left for the day. //1111
-    uint256 lastRandomforExplode;
-    bool readyForExplode = false;
+    uint256 lastTimestamp;
 
-    mapping (uint256 => uint256) requestToTokenID;
-    mapping (uint256 => uint256) tokenIDtoColorID;
-
-    //mapping (uint => bool) public bigPrize; //7 Ether
-    //mapping (uint => bool) public mediumPrize; //0.1 Ether
+    mapping (uint256 => uint256) public tokenIDtoColorID;
+    mapping (uint256 => bool) public bigPrize; //1 Ether
+    mapping (uint256 => bool) public mediumPrize; //0.1 Ether
 
     //For Rinkeby Test Network:
     address vrfCoordinator = 0x6168499c0cFfCaCD319c818142124B7A15E857ab;
 
-    //Array of the remaining colors which did not explode
+    //Array of the colorIDs
     uint256[] public dynamicArray = [
-        3, //Blue //7000
-        6, //Green //14000
-        9, //Orange //21000
-        12, //Pink //28000
-        15, //Purple //35000
-        18, //Red //42000
-        21 //Yellow //49000
+        3, //Blue //1111
+        6, //Green //2222
+        9, //Orange //3333
+        12, //Pink //4444
+        15, //Purple //5555
+        18, //Red //6666
+        21 //Yellow //7777
     ];
     
     //Array of the remaining tokenURIs
@@ -68,73 +63,74 @@ contract Keepers is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
         subscriptionId = _subscriptionId;
     }
 
-    function safeMint(address to) public payable {
-        require(msg.value == 1000000000000000, "Not enough ETH sent"); //Mint price is 0.001 Ether
-        require(dailyLeft > 0, "Maximum number reached for the day"); //Max number of NFTs that could be minted in a day
-        require(dayIndex <= 7, "Event over"); //After day 7, NFTs cannot be minted.
+    function safeMint(address to, uint256 index) public payable {
+        require(0 <= index && index <= 6, "No such color found");
+        require((dynamicArray[index] / 3) == index + 1, "Color sold out"); // 1111
+        require(msg.value == 1000000000000000, "Not enough ETH"); //Mint price is 0.001 Ether
         uint256 tokenId = _tokenIdCounter.current();
+        tokenIDtoColorID[tokenId] = dynamicArray[index];
+        dynamicArray[index] += 1;
         _tokenIdCounter.increment();
         _safeMint(to, tokenId);
-        requestRandomWords(tokenId);
+        _setTokenURI(tokenId, bombIPFSDynamic[index]);
+
     }
 
     // Assumes the subscription is funded sufficiently.
     // Will revert if subscription is not set and funded.
-
-    // Brings random number to change the metadata of the NFT.
-    // Assigns colors to the NFTs randomly.
     
-    function requestRandomWords(uint256 tokenID) internal {
-        uint256 s_requestId = COORDINATOR.requestRandomWords(
-        keyHash,
-        subscriptionId,
-        requestConfirmations,
-        callbackGasLimit,
-        numWords
-        );
-        
-        requestToTokenID[s_requestId] = tokenID;
-        dailyLeft--;
-    }
-
-    function fulfillRandomWords(
-        uint256 requestID,
-        uint256[] memory randomWords
-    ) internal override {
-
-        if (!readyForExplode) {
-            uint256 randomValue = (randomWords[0] % dynamicArray.length) + 1;
-            uint256 colorID = dynamicArray[randomValue];
-            uint256 tokenID = requestToTokenID[requestID];
-            _setTokenURI(tokenID, bombIPFSDynamic[(colorID / 3) - 1]); //Divide by 7000
-            tokenIDtoColorID[tokenID] = colorID;
-            dynamicArray[randomValue] += 1;
-        }
-        else {
-            uint256 randomValue = (randomWords[0] % dynamicArray.length) + 1;
-            removeColor(randomValue);
-        }
-        
-    }
-
-    /*
-        Triggered by Chainlink Keepers every day to reset
-        the maximum amount of NFTs that can be minted and 
-        increment the number of days.
-    */
-    function keepersTrigger() internal {
-        dayIndex++;
-        dailyLeft = 1; //1111
-        readyForExplode = true;
-        
-        //Request random words for explosion.
+    function requestRandomWords() internal {
         COORDINATOR.requestRandomWords(
         keyHash,
         subscriptionId,
         requestConfirmations,
         callbackGasLimit,
         numWords
-        );
+        );  
+    }
+
+    function fulfillRandomWords(
+        uint256, /* requestID */
+        uint256[] memory randomWords
+    ) internal override {
+        if (dynamicArray.length > 1) {
+            uint256 randomValue = (randomWords[0] % dynamicArray.length) + 1;
+            removeColor(randomValue);
+        }
+        else {
+            randomWordsForRewards[0] = randomWords[0];
+        }
+        //add an else part to return a random number for rewards distribution.
+        
+    }
+
+    function checkUpkeep(bytes calldata checkData) external view override returns (bool upkeepNeeded, bytes memory performData) {
+        
+        if(keccak256(checkData) == keccak256(hex'01')) {
+            //check if the winner is determined.
+            //announce the winners in performUpkeep
+            upkeepNeeded = (_tokenIdCounter.current() > 7775) && ((block.timestamp - lastTimestamp) > 86400);
+            performData = checkData; 
+        }
+        /*
+        if(keccak256(checkData) == keccak256(hex'03')) {
+            //check if random number for reward lottery has arrived from VRF
+            upkeepNeeded = randomWordsForRewards[0] != 0; 
+            performData = checkData;
+        }
+        */
+            
+    }
+    
+    function performUpkeep(bytes calldata performData) external override{
+        if(keccak256(performData) == keccak256(hex'01') && 
+            _tokenIdCounter.current() > 7775 && 
+            (block.timestamp - lastTimestamp) > 86400) {
+
+            lastTimestamp = block.timestamp;
+            requestRandomWords();
+        }
+
     }
 
     function removeColor(uint256 index) internal {
