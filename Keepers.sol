@@ -27,6 +27,7 @@ contract BombsNFT is ERC721, ERC721URIStorage, VRFConsumerBaseV2, KeeperCompatib
         be minted in a day.
     */
     uint256 lastTimestamp;
+    bool readyForTeamWithdrawal;
 
     mapping (uint256 => uint256) public tokenIDtoColorID;
     mapping (uint256 => bool) public bigPrize; //1 Ether
@@ -93,25 +94,26 @@ contract BombsNFT is ERC721, ERC721URIStorage, VRFConsumerBaseV2, KeeperCompatib
         uint256, /* requestID */
         uint256[] memory randomWords
     ) internal override {
-        if (dynamicArray.length > 1) {
-            uint256 randomValue = (randomWords[0] % dynamicArray.length) + 1;
-            removeColor(randomValue);
-        }
-        else {
-            randomWordsForRewards[0] = randomWords[0];
-        }
-        //add an else part to return a random number for rewards distribution.
         
+        uint256 randomValue = (randomWords[0] % dynamicArray.length) + 1;
+        removeColor(randomValue);
+        randomWordsForRewards[0] = randomWords[0];
+         
     }
 
     function checkUpkeep(bytes calldata checkData) external view override returns (bool upkeepNeeded, bytes memory performData) {
         
         if(keccak256(checkData) == keccak256(hex'01')) {
-            //check if the winner is determined.
-            //announce the winners in performUpkeep
+            //check if all NFT is sold out and 24-hour passed for color explosions
             upkeepNeeded = (_tokenIdCounter.current() > 7775) && ((block.timestamp - lastTimestamp) > 86400);
             performData = checkData; 
         }
+
+        if(keccak256(checkData) == keccak256(hex'02')) {
+            upkeepNeeded = (dynamicArray.length == 1);
+            performData = checkData;
+        }
+
         /*
         if(keccak256(checkData) == keccak256(hex'03')) {
             //check if random number for reward lottery has arrived from VRF
@@ -131,6 +133,10 @@ contract BombsNFT is ERC721, ERC721URIStorage, VRFConsumerBaseV2, KeeperCompatib
             requestRandomWords();
         }
 
+        if(keccak256(performData) == keccak256(hex'02')) {
+            //add the function for rewards distributions
+            readyForTeamWithdrawal = true;
+        }
     }
 
     function removeColor(uint256 index) internal {
