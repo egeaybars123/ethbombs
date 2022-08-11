@@ -7,7 +7,6 @@ import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-
 contract BombsNFT is ERC721, ERC721URIStorage, VRFConsumerBaseV2, KeeperCompatible {
     using Counters for Counters.Counter;
     Counters.Counter public _tokenIdCounter;
@@ -21,17 +20,17 @@ contract BombsNFT is ERC721, ERC721URIStorage, VRFConsumerBaseV2, KeeperCompatib
     uint32 callbackGasLimit = 120000;
     uint32 numWords = 1;
 
-    /*
-        Counting how many days passed till the start.
-        This will be important to limit how many NFTs could
-        be minted in a day.
-    */
     uint256 lastTimestamp;
     bool readyForTeamWithdrawal;
 
+    struct WinnerInfo {
+        bool eligible; 
+        bool withdrawn; //set to true when winner ID withdraws the prize
+    }
+
     mapping (uint256 => uint256) public tokenIDtoColorID;
-    mapping (uint256 => bool) public bigPrize; //1 Ether
-    mapping (uint256 => bool) public mediumPrize; //0.1 Ether
+    mapping (uint256 => WinnerInfo) public checkBigPrize; //1 Ether
+    mapping (uint256 => WinnerInfo) public checkSmallPrize; //0.1 Ether
 
     //For Rinkeby Test Network:
     address vrfCoordinator = 0x6168499c0cFfCaCD319c818142124B7A15E857ab;
@@ -68,13 +67,13 @@ contract BombsNFT is ERC721, ERC721URIStorage, VRFConsumerBaseV2, KeeperCompatib
         require(0 <= index && index <= 6, "No such color found");
         require((dynamicArray[index] / 3) == index + 1, "Color sold out"); // 1111
         require(msg.value == 1000000000000000, "Not enough ETH"); //Mint price is 0.001 Ether
+
         uint256 tokenId = _tokenIdCounter.current();
         tokenIDtoColorID[tokenId] = dynamicArray[index];
         dynamicArray[index] += 1;
-        _tokenIdCounter.increment();
         _safeMint(to, tokenId);
         _setTokenURI(tokenId, bombIPFSDynamic[index]);
-
+        _tokenIdCounter.increment();
     }
 
     // Assumes the subscription is funded sufficiently.
@@ -133,9 +132,35 @@ contract BombsNFT is ERC721, ERC721URIStorage, VRFConsumerBaseV2, KeeperCompatib
             requestRandomWords();
         }
 
-        if(keccak256(performData) == keccak256(hex'02')) {
-            //add the function for rewards distributions
+        if(keccak256(performData) == keccak256(hex'02') && 
+            (dynamicArray.length == 1)) {
+            //set 2.2 million gas for determineWinners function
             readyForTeamWithdrawal = true;
+            determineWinners(randomWordsForRewards[0]);
+        }
+    }
+
+    function determineWinners(uint256 randomNumber) internal {
+        //determine 1 ETH winners - 7 IDs
+        for (uint i; i < 7; i++) {
+            uint256 colorID = randomNumber % 1111;
+            while(checkBigPrize[colorID].eligible) {
+                randomNumber >>= 1;
+                colorID = randomNumber % 1111;
+            }
+            checkBigPrize[colorID].eligible = true;
+            randomNumber >>= 1;
+        }
+
+        //determine 0.1 ETH winners - 70 IDs
+        for (uint i; i < 70; i++) {
+            uint256 colorID = randomNumber % 1111;
+            while(checkBigPrize[colorID].eligible || checkSmallPrize[colorID].eligible) {
+                randomNumber >>= 1;
+                colorID = randomNumber % 1111;
+            }
+            checkSmallPrize[colorID].eligible = true;
+            randomNumber >>= 1;
         }
     }
 
