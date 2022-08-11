@@ -1,0 +1,52 @@
+//SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.7;
+
+import "erc721a/contracts/ERC721A.sol";
+
+contract ETHBombs is ERC721A {
+
+    uint256[] public dynamicArray = [
+        3, //Blue //1111
+        6, //Green //2222
+        9, //Orange //3333
+        12, //Pink //4444
+        15, //Purple //5555
+        18, //Red //6666
+        21 //Yellow //7777
+    ];
+
+    string[] public bombIPFSDynamic = [
+        "blue.ipfs",
+        "green.ipfs",
+        "orange.ipfs",
+        "pink.ipfs",
+        "purple.ipfs",
+        "red.ipfs",
+        "yellow.ipfs"
+    ];
+
+    mapping (uint256 => uint256) public tokenIDtoColorID;
+    mapping (uint256 => string) public tokenIDtoURIs;
+
+    constructor() ERC721A("My NFT", "MNFT") {}
+
+    function mint(uint256[] memory colorList) public payable {
+        uint256 quantity = colorList.length;
+        require(msg.value == 1000000000000000 * quantity, "Not enough ETH"); //Mint price is 0.001 Ether
+        require(quantity + _numberMinted(msg.sender) <= 11, "Max amount of NFTs claimed for this address"); //Max mint per address set to 11
+
+        uint256 totalMinted = _totalMinted();
+
+        for(uint i; i < quantity; i++) {
+            uint256 index = colorList[i];
+            assert((dynamicArray[index] / 3) == index + 1); // 1111 - checks if the color is sold out.
+            tokenIDtoColorID[totalMinted] = dynamicArray[index];
+            tokenIDtoURIs[totalMinted] = bombIPFSDynamic[index];
+            dynamicArray[index] += 1;
+            totalMinted++;
+        }
+
+        _safeMint(msg.sender, quantity);
+    }
+
+}
