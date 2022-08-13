@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: UNLICENSED
+//SPDX-License-Identifier: MIT
 pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -37,13 +37,13 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
 
     //Array of the colorIDs
     uint256[] public dynamicArray = [
-        3, //Blue //1111
-        6, //Green //2222
-        9, //Orange //3333
-        12, //Pink //4444
-        15, //Purple //5555
-        18, //Red //6666
-        21 //Yellow //7777
+        1111, //Blue 
+        2222, //Green 
+        3333, //Orange 
+        4444, //Pink 
+        5555, //Purple 
+        6666, //Red 
+        7777 //Yellow 
     ];
     
     //Array of the remaining tokenURIs
@@ -63,7 +63,7 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
         subscriptionId = _subscriptionId;
     }
 
-    function mint(uint256[] memory colorList) public payable {
+    function mint(uint256[] memory colorList) external payable {
         uint256 quantity = colorList.length;
         require(msg.value == 7000000000000000 * quantity, "Not enough ETH"); //Mint price is 0.007 Ether
         require(quantity + _numberMinted(msg.sender) <= 11, "Max amount of NFTs claimed for this address"); //Max mint per address set to 11
@@ -78,7 +78,22 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
             dynamicArray[index] += 1;
             totalMinted++;
         }
+        //try adding tokenURI by overriding tokenURI function and checking which colorID corresponds
+        //to the tokenID and add to that baseURI.
         _safeMint(msg.sender, quantity);
+    }
+
+    function _baseURI() internal view virtual override returns (string memory) {
+        return "ipfs://BpofOIFOoibOIBOIFBRGO043209842IBFWBU/";
+    }
+
+    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
+        if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
+
+        string memory baseURI = _baseURI();
+        uint256 colorID = tokenIDtoColorID[tokenId];
+        uint256 colorIPFS = colorID / 3;
+        return bytes(baseURI).length != 0 ? string(abi.encodePacked(baseURI, _toString(colorIPFS))) : '';
     }
 
     // Assumes the subscription is funded sufficiently.
@@ -166,7 +181,7 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
         uint256 checkID = colorID - baseID; //check if 0 works - it works!
         require(checkBigPrize[checkID].eligible && !checkBigPrize[checkID].withdrawn, 
         "ID is not eligible for reward or ID has withdrawn the prize");
-        //add setting withdrawn to true and transferring the ether later
+        
         checkBigPrize[checkID].withdrawn = true;
         (bool sent, ) = msg.sender.call{value: 1 ether}("");
         require(sent, "Failed to send the rewards");
