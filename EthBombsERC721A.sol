@@ -22,6 +22,7 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
     uint256 lastTimestamp;
     bool readyForTeamWithdrawal;
     bool readyForBigBangRewards;
+    bool winnersDetermined;
 
     struct WinnerInfo {
         bool eligible; 
@@ -46,7 +47,7 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
         35 //Yellow 
     ];
 
-    event ColorExplode(uint256 remaining_color, uint256 exploded_color);
+    //event ColorExplode(uint256 remaining_color, uint256 exploded_color);
 
     //subscriptionID: 9753 
     constructor(uint64 _subscriptionId) VRFConsumerBaseV2(vrfCoordinator) ERC721A("Eth", "EBMB") {
@@ -101,37 +102,45 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
         uint256, /* requestID */
         uint256[] memory randomWords
     ) internal override {
-        uint256 explodedColorIndex = randomWords[0] % dynamicArray.length;
-        removeColor(explodedColorIndex);
-        randomWordsForRewards[0] = randomWords[0];
+        if (dynamicArray.length > 1) {
+            uint256 explodedColorIndex = randomWords[0] % dynamicArray.length;
+            removeColor(explodedColorIndex);
+            randomWordsForRewards[0] = randomWords[0];
+        }
+        
+        if(dynamicArray.length == 1) {
+            winnersDetermined = true;
+        }
     }
 
     function checkUpkeep(bytes calldata checkData) external view override returns (bool upkeepNeeded, bytes memory performData) {
         if(keccak256(checkData) == keccak256(hex'01')) {
-            upkeepNeeded = (_totalMinted() > 34) && ((block.timestamp - lastTimestamp) > 60) && (dynamicArray.length > 1);
+            upkeepNeeded = (_totalMinted() > 34) && ((block.timestamp - lastTimestamp) > 120) && (dynamicArray.length != 1);
             performData = checkData; 
         }
 
         if(keccak256(checkData) == keccak256(hex'02')) {
-            upkeepNeeded = (dynamicArray.length == 1);
+            upkeepNeeded = (dynamicArray.length == 1) && winnersDetermined;
             performData = checkData;
         }           
     }
     
     function performUpkeep(bytes calldata performData) external override{
         if(keccak256(performData) == keccak256(hex'01') && 
-            (_totalMinted() > 34) && (dynamicArray.length > 1) &&
-            (block.timestamp - lastTimestamp) > 60) {
+            (_totalMinted() > 34) && (dynamicArray.length != 1) &&
+            (block.timestamp - lastTimestamp) > 120) {
 
             lastTimestamp = block.timestamp;
             requestRandomWords();
         }
 
         if(keccak256(performData) == keccak256(hex'02') && 
-            (dynamicArray.length == 1)) {
+            (dynamicArray.length == 1) &&
+            winnersDetermined) {
             //set 2.5 million gas for determineWinners function
             readyForTeamWithdrawal = true;
             readyForBigBangRewards = true;
+            winnersDetermined = false;
             determineWinners(randomWordsForRewards[0]);
         }
     }
@@ -165,7 +174,7 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
         require(ownerOf(tokenID) == msg.sender);
 
         uint256 colorID = tokenIDtoColorID[tokenID];
-        uint256 baseID = dynamicArray[0] - 4;
+        uint256 baseID = dynamicArray[0] - 5;
         uint256 checkID = colorID - baseID; //check if 0 works - it works!
         require(checkBigPrize[checkID].eligible && !checkBigPrize[checkID].withdrawn, 
         "ID is not eligible for reward or ID has withdrawn the prize");
@@ -179,7 +188,7 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
         require(ownerOf(tokenID) == msg.sender);
 
         uint256 colorID = tokenIDtoColorID[tokenID];
-        uint256 baseID = dynamicArray[0] - 4;
+        uint256 baseID = dynamicArray[0] - 5;
         uint256 checkID = colorID - baseID; //check if 0 works - it works!
         require(checkSmallPrize[checkID].eligible && !checkSmallPrize[checkID].withdrawn, 
         "ID is not eligible for reward or ID has withdrawn the prize");
@@ -204,12 +213,15 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
     }
 
     function removeColor(uint256 index) internal {
-        emit ColorExplode(dynamicArray.length - 1, dynamicArray[dynamicArray.length - 1]);
         dynamicArray[index] = dynamicArray[dynamicArray.length - 1];
         dynamicArray.pop();
     }
 
     function getContractBalance() view public returns(uint){
         return address(this).balance;
+    }
+
+    function showRemainingColors() public view returns(uint256[] memory) {
+        return dynamicArray;
     }
 }
