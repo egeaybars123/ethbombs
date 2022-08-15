@@ -7,20 +7,34 @@ import "@chainlink/contracts/src/v0.8/KeeperCompatible.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "erc721a/contracts/ERC721A.sol";
+import "erc721a/contracts/extensions/ERC721AQueryable.sol";
 
 //Mainnet contract
-contract EthBombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, KeeperCompatible {
+contract EthBombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFConsumerBaseV2, KeeperCompatible {
 
     VRFCoordinatorV2Interface COORDINATOR;
-    uint64 subscriptionId;
-    bytes32 internal keyHash = 0x8af398995b04c28e9951adb9721ef74c74f93e6a478f39e7e0777be13527e7ef;
-    uint16 requestConfirmations = 3; //?
-    uint256[1] public randomWordsForRewards;
     
-    uint32 callbackGasLimit = 120000;
+    //SubscriptionID for the VRF. Make sure that this contract address is added as a consumer
+    //to the subscriptionID.
+    uint64 subscriptionId;
+
+    //200 gwei gas lane for VRF
+    bytes32 private keyHash = 0x8af398995b04c28e9951adb9721ef74c74f93e6a478f39e7e0777be13527e7ef;
+
+    //50 blocks need to be confirmed in the Ethereum for the random number to be confirmed. 
+    uint16 private requestConfirmations = 50; //?
+
+    //120000 gas for fullfillRandomWords() function
+    uint32 private callbackGasLimit = 120000;
+
+    //One random number is returned every day
     uint32 numWords = 1;
 
+    //VRF random numbers are stored here.
+    uint256[1] public randomWordsForRewards;
+
     uint256 lastTimestamp;
+
     bool readyForTeamWithdrawal;
     bool readyForBigBangRewards;
     bool winnersDetermined;
@@ -38,6 +52,8 @@ contract EthBombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Ke
     address vrfCoordinator = 0x271682DEB8C4E0901D1a1550aD2e64D568E69909;
 
     //Array of the colorIDs
+    //Max number of color that can be minted is 1111.
+    //For example, between 1111-2221, colorIDs will be minted for blue. 
     uint256[] public dynamicArray = [
         1111, //Blue 
         2222, //Green 
@@ -48,9 +64,8 @@ contract EthBombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Ke
         7777 //Yellow 
     ];
 
-
-    //subscriptionID:  
-    constructor(uint64 _subscriptionId) VRFConsumerBaseV2(vrfCoordinator) ERC721A("Eth", "EBMB") {
+    //Enter a subscription ID for VRF before deploying the contract! 
+    constructor(uint64 _subscriptionId) VRFConsumerBaseV2(vrfCoordinator) ERC721A("ETH BOMBS", "EBOMB") {
         COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
         subscriptionId = _subscriptionId;
     }
@@ -72,10 +87,13 @@ contract EthBombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Ke
         _safeMint(msg.sender, quantity);
     }
 
+    //IPFS link for the metadata
     function _baseURI() internal view virtual override returns (string memory) {
-        return "ipfs://BpofOIFOoibOIBOIFBRGO043209842IBFWBU/";
+        return "ipfs://bafybeih7a6psjgkekbvkrnkk7zcq4mol6dd4p7w7zmxa7rk4bclt2zwl4u/";
     }
 
+    //tokenURI is given according to the colorID. For example, color ID is 2243, divide it by 
+    //1111 and the result is 2, so green color is set as URI for a given tokenID.
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
 
@@ -87,7 +105,6 @@ contract EthBombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Ke
 
     // Assumes the subscription is funded sufficiently.
     // Will revert if subscription is not set and funded.
-    
     function requestRandomWords() internal {
         COORDINATOR.requestRandomWords(
         keyHash,
@@ -98,33 +115,42 @@ contract EthBombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Ke
         );  
     }
 
+    //Chainlink nodes execute this function when the random number is available.
     function fulfillRandomWords(
         uint256, /* requestID */
         uint256[] memory randomWords
     ) internal override {
+
+        //This if block is used to explode the colors.
         if (dynamicArray.length > 1) {
-            uint256 explodedColorIndex = randomWords[0] % dynamicArray.length;
+            uint256 explodedColorIndex = randomWords[0] % dynamicArray.length; 
             removeColor(explodedColorIndex);
             randomWordsForRewards[0] = randomWords[0];
         }
         
+        //winnersDetermined is set to true for the second Upkeep to work.
         if(dynamicArray.length == 1) {
             winnersDetermined = true;
         }
     }
 
+    //Checked every block by the Chainlink nodes off-chain.
     function checkUpkeep(bytes calldata checkData) external view override returns (bool upkeepNeeded, bytes memory performData) {
+        //First upkeep job to explode the colors every day. 
         if(keccak256(checkData) == keccak256(hex'01')) {
             upkeepNeeded = (_totalMinted() > 7776) && ((block.timestamp - lastTimestamp) > 86400) && (dynamicArray.length != 1);
             performData = checkData; 
         }
 
+        //Second upkeep job to determine the winners.
         if(keccak256(checkData) == keccak256(hex'02')) {
             upkeepNeeded = (dynamicArray.length == 1) && winnersDetermined;
             performData = checkData;
         }           
     }
     
+    //In this function, upkeeps are executed on-chain. These jobs are called
+    //by Chainlink nodes.
     function performUpkeep(bytes calldata performData) external override{
         if(keccak256(performData) == keccak256(hex'01') && 
             (_totalMinted() > 7776) && (dynamicArray.length != 1) &&
@@ -145,6 +171,8 @@ contract EthBombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Ke
         }
     }
 
+    //Determines the winners- first 7 are 1 ETH winners, and the other
+    //70 are 0.1 ETH winners.
     function determineWinners(uint256 randomNumber) internal {
 
         //determine 1 ETH winners - 7 IDs
@@ -170,6 +198,7 @@ contract EthBombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Ke
         }
     }
 
+    //
     function withdrawBigPrize(uint256 tokenID) public payable nonReentrant {
         require(ownerOf(tokenID) == msg.sender);
 
@@ -212,6 +241,8 @@ contract EthBombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Ke
         require(sent, "Failed to send Ether");
     }
 
+    //checks if the remaining color holder is eligible for airdrop for BIGBANG. 
+    //The color holder should not be the winner for big or small prize.
     function eligibleForAirdrop(uint256 tokenID) public view returns (bool) {
         uint256 colorID = tokenIDtoColorID[tokenID];
         uint256 baseID = dynamicArray[0] - 1111;
@@ -224,6 +255,7 @@ contract EthBombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Ke
         return false;
     }
 
+    //Removes the color ID from the array.
     function removeColor(uint256 index) internal {
         dynamicArray[index] = dynamicArray[dynamicArray.length - 1];
         dynamicArray.pop();

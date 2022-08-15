@@ -7,9 +7,10 @@ import "@chainlink/contracts/src/v0.8/KeeperCompatible.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "erc721a/contracts/ERC721A.sol";
+import "erc721a/contracts/extensions/ERC721AQueryable.sol";
 
 //Goerli testnet contract
-contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, KeeperCompatible {
+contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFConsumerBaseV2, KeeperCompatible {
 
     VRFCoordinatorV2Interface COORDINATOR;
     uint64 subscriptionId;
@@ -51,7 +52,7 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
     //event ColorExplode(uint256 remaining_color, uint256 exploded_color);
 
     //subscriptionID: 71 
-    constructor(uint64 _subscriptionId) VRFConsumerBaseV2(vrfCoordinator) ERC721A("Eth", "EBMB") {
+    constructor(uint64 _subscriptionId) VRFConsumerBaseV2(vrfCoordinator) ERC721A("ETH BOMBS", "BOOM") {
         COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
         subscriptionId = _subscriptionId;
     }
@@ -74,7 +75,7 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
-        return "ipfs://BpofOIFOoibOIBOIFBRGO043209842IBFWBU/";
+        return "ipfs://bafybeih7a6psjgkekbvkrnkk7zcq4mol6dd4p7w7zmxa7rk4bclt2zwl4u/";
     }
 
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
