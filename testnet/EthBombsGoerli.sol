@@ -8,11 +8,12 @@ import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "erc721a/contracts/ERC721A.sol";
 
+//Goerli testnet contract
 contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, KeeperCompatible {
 
     VRFCoordinatorV2Interface COORDINATOR;
     uint64 subscriptionId;
-    bytes32 internal keyHash = 0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc;
+    bytes32 internal keyHash = 0x79d3d8832d904592c0bf9818b621522c988bb8b0c05cdc3b15aea1b6e8db0c15;
     uint16 requestConfirmations = 3;
     uint256[1] public randomWordsForRewards;
     //uint256 public s_requestId;
@@ -34,7 +35,7 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
     mapping (uint256 => WinnerInfo) public checkSmallPrize; //0.001 Ether
 
     //For Rinkeby Test Network:
-    address vrfCoordinator = 0x6168499c0cFfCaCD319c818142124B7A15E857ab;
+    address vrfCoordinator = 0x2Ca8E0C643bDe4C2E08ab1fA0da3401AdAD7734D;
 
     //Array of the colorIDs
     uint256[] public dynamicArray = [
@@ -49,7 +50,7 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
 
     //event ColorExplode(uint256 remaining_color, uint256 exploded_color);
 
-    //subscriptionID: 9753 
+    //subscriptionID: 71 
     constructor(uint64 _subscriptionId) VRFConsumerBaseV2(vrfCoordinator) ERC721A("Eth", "EBMB") {
         COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
         subscriptionId = _subscriptionId;
@@ -180,7 +181,7 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
         "ID is not eligible for reward or ID has withdrawn the prize");
         
         checkBigPrize[checkID].withdrawn = true;
-        (bool sent, ) = msg.sender.call{value: 0.005 ether}("");
+        (bool sent, ) = msg.sender.call{value: 0.01 ether}("");
         require(sent, "Failed to send the rewards");
     }
 
@@ -189,10 +190,9 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
 
         uint256 colorID = tokenIDtoColorID[tokenID];
         uint256 baseID = dynamicArray[0] - 5;
-        uint256 checkID = colorID - baseID; //check if 0 works - it works!
+        uint256 checkID = colorID - baseID; //Solidity 0.8 throws an error for underflow/overflow
         require(checkSmallPrize[checkID].eligible && !checkSmallPrize[checkID].withdrawn, 
         "ID is not eligible for reward or ID has withdrawn the prize");
-        //add setting withdrawn to true and transferring the ether later
         checkSmallPrize[checkID].withdrawn = true;
         (bool sent, ) = msg.sender.call{value: 0.001 ether}("");
         require(sent, "Failed to send the rewards");
@@ -201,15 +201,27 @@ contract BombsNFT is ERC721A, ReentrancyGuard, Ownable, VRFConsumerBaseV2, Keepe
     function withdrawTeam() public payable nonReentrant onlyOwner {
         require(readyForTeamWithdrawal, "Winners not determined yet");
         readyForTeamWithdrawal = false;
-        (bool sent,) = msg.sender.call{value: 0.001 ether}("");
+        (bool sent,) = msg.sender.call{value: 0.01 ether}("");
         require(sent, "Failed to send Ether");
     }
 
     function withdrawBigBangRewards() public payable nonReentrant onlyOwner {
         require(readyForBigBangRewards, "Winners not determined yet");
-        readyForTeamWithdrawal = false;
-        (bool sent,) = address(0xc3a3877197223e222F90E3248dEE2360cAB56D6C).call{value: 0.001 ether}("");
+        readyForBigBangRewards = false;
+        (bool sent,) = address(0xc3a3877197223e222F90E3248dEE2360cAB56D6C).call{value: 0.01 ether}("");
         require(sent, "Failed to send Ether");
+    }
+
+    function eligibleForAirdrop(uint256 tokenID) public view returns (bool) {
+        uint256 colorID = tokenIDtoColorID[tokenID];
+        uint256 baseID = dynamicArray[0] - 5;
+        uint256 checkID = colorID - baseID;
+
+        if(!checkBigPrize[checkID].eligible && !checkSmallPrize[checkID].eligible && 
+        colorID  >= baseID && colorID < dynamicArray[0]) {
+            return true;
+        }
+        return false;
     }
 
     function removeColor(uint256 index) internal {
