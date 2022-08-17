@@ -48,12 +48,14 @@ contract EthBombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRF
     mapping (uint256 => WinnerInfo) public checkBigPrize; //1 Ether
     mapping (uint256 => WinnerInfo) public checkSmallPrize; //0.01 Ether
 
-    //For Ethereum Mainnet
+    //VRF contract address for Ethereum Mainnet:
     address vrfCoordinator = 0x271682DEB8C4E0901D1a1550aD2e64D568E69909;
 
     //Array of the colorIDs
     //Max number of color that can be minted is 1111.
-    //For example, between 1111-2221, colorIDs will be minted for blue. 
+    //For example, between 1111-2221 (including those numbers), 
+    //colorIDs will be minted for blue. 
+    
     uint256[] public dynamicArray = [
         1111, //Blue 
         2222, //Green 
@@ -204,7 +206,7 @@ contract EthBombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRF
 
         uint256 colorID = tokenIDtoColorID[tokenID];
         uint256 baseID = dynamicArray[0] - 1111;
-        uint256 checkID = colorID - baseID; //check if 0 works - it works!
+        uint256 checkID = colorID - baseID; 
         require(checkBigPrize[checkID].eligible && !checkBigPrize[checkID].withdrawn, 
         "ID is not eligible for reward or ID has withdrawn the prize");
         
@@ -230,14 +232,14 @@ contract EthBombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRF
     function withdrawTeam() public payable nonReentrant onlyOwner {
         require(readyForTeamWithdrawal, "Winners not determined yet");
         readyForTeamWithdrawal = false;
-        (bool sent,) = msg.sender.call{value: 5.4 ether}(""); //??????
+        (bool sent,) = msg.sender.call{value: 7 ether}(""); //??????
         require(sent, "Failed to send Ether");
     }
 
     function withdrawBigBangRewards() public payable nonReentrant onlyOwner {
         require(readyForBigBangRewards, "Winners not determined yet");
         readyForBigBangRewards = false;
-        (bool sent,) = address(0xc3a3877197223e222F90E3248dEE2360cAB56D6C).call{value: 0.01 ether}(""); //???
+        (bool sent,) = address(0x47493b9a8d72e4c1487aB1022aa3D71627A27dD1).call{value: 28 ether}(""); 
         require(sent, "Failed to send Ether");
     }
 

@@ -14,12 +14,11 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
 
     VRFCoordinatorV2Interface COORDINATOR;
     uint64 subscriptionId;
-    bytes32 internal keyHash = 0x79d3d8832d904592c0bf9818b621522c988bb8b0c05cdc3b15aea1b6e8db0c15;
-    uint16 requestConfirmations = 3;
+    bytes32 private keyHash = 0x79d3d8832d904592c0bf9818b621522c988bb8b0c05cdc3b15aea1b6e8db0c15;
+    uint16 private requestConfirmations = 3;
     uint256[1] public randomWordsForRewards;
-    //uint256 public s_requestId;
-    uint32 callbackGasLimit = 120000;
-    uint32 numWords = 1;
+    uint32 private callbackGasLimit = 120000;
+    uint32 private numWords = 1;
 
     uint256 lastTimestamp;
     bool readyForTeamWithdrawal;
@@ -32,10 +31,10 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
     }
 
     mapping (uint256 => uint256) public tokenIDtoColorID;
-    mapping (uint256 => WinnerInfo) public checkBigPrize; //0.005 Ether
-    mapping (uint256 => WinnerInfo) public checkSmallPrize; //0.001 Ether
+    mapping (uint256 => WinnerInfo) public checkBigPrize; //0.01 Ether
+    mapping (uint256 => WinnerInfo) public checkSmallPrize; //0.002 Ether
 
-    //For Rinkeby Test Network:
+    //For Goerli Test Network:
     address vrfCoordinator = 0x2Ca8E0C643bDe4C2E08ab1fA0da3401AdAD7734D;
 
     //Array of the colorIDs
@@ -48,8 +47,6 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         30, //Red 
         35 //Yellow 
     ];
-
-    //event ColorExplode(uint256 remaining_color, uint256 exploded_color);
 
     //subscriptionID: 71 
     constructor(uint64 _subscriptionId) VRFConsumerBaseV2(vrfCoordinator) ERC721A("ETH BOMBS", "BOOM") {
@@ -195,7 +192,7 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         require(checkSmallPrize[checkID].eligible && !checkSmallPrize[checkID].withdrawn, 
         "ID is not eligible for reward or ID has withdrawn the prize");
         checkSmallPrize[checkID].withdrawn = true;
-        (bool sent, ) = msg.sender.call{value: 0.001 ether}("");
+        (bool sent, ) = msg.sender.call{value: 0.002 ether}("");
         require(sent, "Failed to send the rewards");
     }
 
@@ -230,7 +227,7 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         dynamicArray.pop();
     }
 
-    function getContractBalance() view public returns(uint){
+    function getContractBalance() public view returns(uint){
         return address(this).balance;
     }
 
