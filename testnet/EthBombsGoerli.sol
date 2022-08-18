@@ -48,6 +48,8 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         35 //Yellow 
     ];
 
+    event BombMinted(address indexed minter, uint256 indexed colorID, uint256 tokenID);
+
     //subscriptionID: 71 
     constructor(uint64 _subscriptionId) VRFConsumerBaseV2(vrfCoordinator) ERC721A("ETH BOMBS", "BOOM") {
         COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
@@ -66,8 +68,10 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
             require((dynamicArray[index] / 5) == index + 1); // checks if the color is sold out.
             tokenIDtoColorID[totalMinted] = dynamicArray[index];
             dynamicArray[index] += 1;
+            emit BombMinted(msg.sender, index, totalMinted);
             totalMinted++;
         }
+        
         _safeMint(msg.sender, quantity);
     }
 
