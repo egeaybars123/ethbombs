@@ -59,7 +59,7 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
     function mint(uint256[] memory colorList) external payable {
         uint256 quantity = colorList.length;
         require(msg.value == 1000000000000000 * quantity, "Not enough ETH"); //Mint price is 0.001 Ether
-        require(quantity + _numberMinted(msg.sender) <= 22, "Max amount of NFTs claimed for this address"); //Max mint per address set to 11
+        require(quantity + _numberMinted(msg.sender) <= 22, "Max amount of NFTs claimed for this address"); //Max mint per address set to 11 in the mainnet contract
 
         uint256 totalMinted = _totalMinted();
 
@@ -231,11 +231,16 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         dynamicArray.pop();
     }
 
-    function getContractBalance() public view returns(uint){
+    function getContractBalance() public view returns(uint256){
         return address(this).balance;
     }
 
     function showRemainingColors() public view returns(uint256[] memory) {
         return dynamicArray;
     }
+
+    function showNumberMinted(address minter) external view returns (uint256) {
+        return _numberMinted(minter);
+    }
 }
+
