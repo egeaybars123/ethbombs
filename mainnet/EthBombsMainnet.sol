@@ -22,7 +22,7 @@ contract EthBombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRF
     bytes32 private keyHash = 0x8af398995b04c28e9951adb9721ef74c74f93e6a478f39e7e0777be13527e7ef;
 
     //50 blocks need to be confirmed in the Ethereum for the random number to be confirmed. 
-    uint16 private requestConfirmations = 50; 
+    uint16 private requestConfirmations = 50; //?
 
     //120000 gas for fullfillRandomWords() function
     uint32 private callbackGasLimit = 120000;
@@ -45,6 +45,8 @@ contract EthBombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRF
     }
 
     mapping (uint256 => uint256) public tokenIDtoColorID;
+    mapping (uint256 => bool) public explodedColorsMetadata;
+
     mapping (uint256 => WinnerInfo) public checkBigPrize; //1 Ether
     mapping (uint256 => WinnerInfo) public checkSmallPrize; //0.01 Ether
 
@@ -92,7 +94,7 @@ contract EthBombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRF
 
     //IPFS link for the metadata
     function _baseURI() internal view virtual override returns (string memory) {
-        return "ipfs://bafybeih7a6psjgkekbvkrnkk7zcq4mol6dd4p7w7zmxa7rk4bclt2zwl4u/";
+        return "ipfs://bafybeiajcu2vshmajx2cf7sgmr5uqwyeqqkbp2pq6i2f3vqjkjbpiqtlye/";
     }
 
     //tokenURI is given according to the colorID. For example, color ID is 2243, divide it by 
@@ -103,7 +105,14 @@ contract EthBombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRF
         string memory baseURI = _baseURI();
         uint256 colorID = tokenIDtoColorID[tokenId];
         uint256 colorIPFS = colorID / 1111;
-        return bytes(baseURI).length != 0 ? string(abi.encodePacked(baseURI, _toString(colorIPFS))) : '';
+
+        if (explodedColorsMetadata[colorIPFS]) {
+            return bytes(baseURI).length != 0 ? string(abi.encodePacked(baseURI, _toString(8))) : '';
+        }
+
+        else {
+            return bytes(baseURI).length != 0 ? string(abi.encodePacked(baseURI, _toString(colorIPFS))) : '';
+        }
     }
 
     // Assumes the subscription is funded sufficiently.
@@ -166,10 +175,12 @@ contract EthBombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRF
         if(keccak256(performData) == keccak256(hex'02') && 
             (dynamicArray.length == 1) &&
             winnersDetermined) {
-            //set 2.5 million gas for determineWinners function
+            
             readyForTeamWithdrawal = true;
             readyForBigBangRewards = true;
             winnersDetermined = false;
+
+            //set 2.5 million gas for determineWinners function
             determineWinners(randomWordsForRewards[0]);
         }
     }
@@ -260,6 +271,7 @@ contract EthBombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRF
 
     //Removes the color ID from the array.
     function removeColor(uint256 index) internal {
+        explodedColorsMetadata[index + 1] = true;
         dynamicArray[index] = dynamicArray[dynamicArray.length - 1];
         dynamicArray.pop();
     }
@@ -276,4 +288,3 @@ contract EthBombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRF
         return _numberMinted(minter);
     }
 }
-

@@ -14,9 +14,10 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
 
     VRFCoordinatorV2Interface COORDINATOR;
     uint64 subscriptionId;
+    
     bytes32 private keyHash = 0x79d3d8832d904592c0bf9818b621522c988bb8b0c05cdc3b15aea1b6e8db0c15;
     uint16 private requestConfirmations = 3;
-    uint256[1] public randomWordsForRewards;
+    uint256[1] private randomWordsForRewards;
     uint32 private callbackGasLimit = 120000;
     uint32 private numWords = 1;
 
@@ -31,8 +32,10 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
     }
 
     mapping (uint256 => uint256) public tokenIDtoColorID;
+    mapping (uint256 => bool) public explodedColorsMetadata;
+
     mapping (uint256 => WinnerInfo) public checkBigPrize; //0.01 Ether
-    mapping (uint256 => WinnerInfo) public checkSmallPrize; //0.002 Ether
+    mapping (uint256 => WinnerInfo) public checkSmallPrize; //0.005 Ether
 
     //For Goerli Test Network:
     address vrfCoordinator = 0x2Ca8E0C643bDe4C2E08ab1fA0da3401AdAD7734D;
@@ -76,7 +79,7 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
-        return "ipfs://bafybeih7a6psjgkekbvkrnkk7zcq4mol6dd4p7w7zmxa7rk4bclt2zwl4u/";
+       return "ipfs://bafybeiajcu2vshmajx2cf7sgmr5uqwyeqqkbp2pq6i2f3vqjkjbpiqtlye/";
     }
 
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
@@ -85,7 +88,14 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         string memory baseURI = _baseURI();
         uint256 colorID = tokenIDtoColorID[tokenId];
         uint256 colorIPFS = colorID / 5;
-        return bytes(baseURI).length != 0 ? string(abi.encodePacked(baseURI, _toString(colorIPFS))) : '';
+
+        if (explodedColorsMetadata[colorIPFS]) {
+            return bytes(baseURI).length != 0 ? string(abi.encodePacked(baseURI, _toString(8))) : '';
+        }
+
+        else {
+            return bytes(baseURI).length != 0 ? string(abi.encodePacked(baseURI, _toString(colorIPFS))) : '';
+        }
     }
 
     // Assumes the subscription is funded sufficiently.
@@ -227,6 +237,7 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
     }
 
     function removeColor(uint256 index) internal {
+        explodedColorsMetadata[index + 1] = true;
         dynamicArray[index] = dynamicArray[dynamicArray.length - 1];
         dynamicArray.pop();
     }
@@ -243,4 +254,3 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         return _numberMinted(minter);
     }
 }
-
