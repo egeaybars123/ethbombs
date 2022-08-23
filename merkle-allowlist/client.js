@@ -12,18 +12,25 @@ for (let leaf in merkleTree.leaves) {
 }
 
 const tree = new MerkleTree(leaves, keccak256, { sortPairs: true });
+
+//Root of the Merkle tree in Buffer
 const rootHash = tree.getRoot();
+
+//Root of the Merkle tree in hex format
+console.log(tree.getHexRoot());
 
 function isWhitelisted(addr) {
     const allowed_addr = keccak256(addr);
     const hexProof = tree.getHexProof(allowed_addr);
 
     //logs the proof needed to provide to the Solidity smart contract!
-    console.log(hexProof);
+    //Stringify the object to pass it as a parameter to the mint function
+    console.log(JSON.stringify(hexProof));
+
     return tree.verify(hexProof, allowed_addr, rootHash);
 }
 
-const result = isWhitelisted("0x803b83eaf89ff3e19aa3d6832d100ef10da8e8d0");
+const result = isWhitelisted("0x56d47c9631fcfb6bec9175d4af41e1e0ae4b483e");
 console.log(result);
 
 /* SHOULD BE USED FOR BROWSER
