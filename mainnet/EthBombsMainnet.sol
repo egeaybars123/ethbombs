@@ -294,7 +294,7 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         require(amount <= BigBangBalance);
         
         BigBangBalance -= amount;
-        (bool sent,) = address(0xffd0f6289B011C346Da10417B925Aa08a64Aa097).call{value: amount}("");
+        (bool sent,) = address(0x47493b9a8d72e4c1487aB1022aa3D71627A27dD1).call{value: amount}("");
         require(sent, "Failed to send Ether");
     }
 
