@@ -30,17 +30,5 @@ function isWhitelisted(addr) {
     return tree.verify(hexProof, allowed_addr, rootHash);
 }
 
-const result = isWhitelisted("0x56d47c9631fcfb6bec9175d4af41e1e0ae4b483e");
+const result = isWhitelisted("0x9d019EC71aEbf34bf9Ef5071974A83e2163Ac99a");
 console.log(result);
-
-/* SHOULD BE USED FOR BROWSER
-
-import fetch from "node-fetch";
-
-async function fetchMerkle() {
-    let response = await fetch("merkletree.json");
-    let data = await response.json();
-    console.log(data);
-}
-
-*/
