@@ -102,7 +102,7 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
 
         //Subtract the number of free NFTs minted
         //Max mint per address set to 11 in the mainnet contract
-        require(quantity + _numberMinted(msg.sender) - freeMintAddresses[msg.sender] <= 22, "Max amount of NFTs claimed for this address"); 
+        require(quantity + showFreePlusMint(msg.sender) <= 22, "Max amount of NFTs claimed for this address"); 
         
         uint256 totalMinted = _totalMinted();
 
@@ -123,7 +123,7 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
-       return "ipfs://bafybeiajcu2vshmajx2cf7sgmr5uqwyeqqkbp2pq6i2f3vqjkjbpiqtlye/";
+       return "ipfs://bafybeicizdu56kuisq7kciaepdorzt6atelgihomgsbogevt5pqhhfjhx4/";
     }
 
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
@@ -314,6 +314,10 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
 
     function showRemainingColors() public view returns(uint256[] memory) {
         return dynamicArray;
+    }
+
+    function showFreePlusMint(address minter) public view returns(uint256) {
+        return(_numberMinted(minter) - freeMintAddresses[minter]); 
     }
 
     function showNumberMinted(address minter) external view returns (uint256) {
