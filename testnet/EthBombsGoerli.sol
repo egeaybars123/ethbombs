@@ -25,8 +25,8 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
     uint256 lastTimestamp;
     bool winnersDetermined;
 
-    uint256 teamPoolBalance;
-    uint256 BigBangBalance;
+    uint256 public teamPoolBalance;
+    uint256 public BigBangBalance;
 
     mapping (address => uint256) public freeMintAddresses;
     uint256 freeMintCount;
@@ -276,17 +276,19 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         require(sent, "Failed to send the rewards");
     }
 
-    function withdrawTeam() public payable nonReentrant onlyOwner {
-        uint256 withdrawAmount = teamPoolBalance;
-        teamPoolBalance = 0;
-        (bool sent,) = msg.sender.call{value: withdrawAmount}("");
+    function withdrawTeam(uint256 amount) public payable nonReentrant onlyOwner {
+        require(amount <= teamPoolBalance);
+
+        teamPoolBalance -= amount;
+        (bool sent,) = msg.sender.call{value: amount}("");
         require(sent, "Failed to send Ether");
     }
 
-    function withdrawBigBangRewards() public payable nonReentrant onlyOwner {
-        uint256 withdrawAmount = BigBangBalance;
-        BigBangBalance = 0;
-        (bool sent,) = address(0xffd0f6289B011C346Da10417B925Aa08a64Aa097).call{value: withdrawAmount}("");
+    function withdrawBigBangRewards(uint256 amount) public payable nonReentrant onlyOwner {
+        require(amount <= teamPoolBalance);
+        
+        BigBangBalance -= amount;
+        (bool sent,) = address(0xffd0f6289B011C346Da10417B925Aa08a64Aa097).call{value: amount}("");
         require(sent, "Failed to send Ether");
     }
 
@@ -314,6 +316,10 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
 
     function showRemainingColors() public view returns(uint256[] memory) {
         return dynamicArray;
+    }
+
+    function showTotalMinted() public view returns(uint256) {
+        return _totalMinted();
     }
 
     function showFreePlusMint(address minter) public view returns(uint256) {
