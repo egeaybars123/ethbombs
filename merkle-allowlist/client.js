@@ -30,5 +30,5 @@ function isWhitelisted(addr) {
     return tree.verify(hexProof, allowed_addr, rootHash);
 }
 
-const result = isWhitelisted("0xfa1f66bff1F34d8cF6E4132a3BD5712c9b0d8011");
+const result = isWhitelisted("0xf39A114C5FE7A15C2A686e67cc1b02E095Be3CC9");
 console.log(result);
