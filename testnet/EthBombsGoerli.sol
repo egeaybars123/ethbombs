@@ -32,22 +32,21 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
     uint256 freeMintCount;
 
     struct WinnerInfo {
-        bool eligible; 
-        bool withdrawn; //set to true when winner ID withdraws the prize
+        bool eligible;
+        bool withdrawn;
     }
 
     mapping (uint256 => uint256) public tokenIDtoColorID;
     mapping (uint256 => bool) public explodedColorsMetadata;
 
-    mapping (uint256 => WinnerInfo) public check7EthPrize; // 0.02 Ether
-    mapping (uint256 => WinnerInfo) public checkBigPrize; //0.001 Ether
-    mapping (uint256 => WinnerInfo) public checkSmallPrize; //0.0007 Ether
+    mapping (uint256 => WinnerInfo) public checkBigPrize; //0.001 Ether - 1 ETH
+    mapping (uint256 => WinnerInfo) public checkSmallPrize; //0.0007 Ether - 0.25 ETH
 
     //For Goerli Test Network:
     address vrfCoordinator = 0x2Ca8E0C643bDe4C2E08ab1fA0da3401AdAD7734D;
 
     //Merkle root for allowlist
-    bytes32 public merkleRoot = 0x0d046ca660b95422853c7f32f5ed4220263bfd62351eb921b819f17d00d208d7;
+    bytes32 public merkleRoot = 0x8b8409a9850d71fb5ae5374ca1cc9597123eafc4a9b2b308068e8fc25b0c44b7;
 
     //Array of the colorIDs
     uint256[] public dynamicArray = [
@@ -68,15 +67,17 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         subscriptionId = _subscriptionId;
     }
 
-    //fix the uri part and show on opensea.
-    //deal with the balance pool rewards.
+    //Change Keepers conditions
+    //Change IPFS URL and tokenURI function
+    //Change address for BigBangRewards
+    //Change mintPerAddress for mint and freeMint
 
     function freeMint(bytes32[] calldata _merkleProof, uint256[] memory colorList) public {
         uint256 quantity = colorList.length;
 
         bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
         require(MerkleProof.verify(_merkleProof, merkleRoot, leaf), "Not in the allowlist");
-        require(quantity + freeMintAddresses[msg.sender] <= 2, "Max amount of NFTs claimed for this address"); //2 or 33?
+        require(quantity + freeMintAddresses[msg.sender] <= 2, "Max amount of NFTs claimed for this address"); 
 
         uint256 totalMinted = _totalMinted();
 
@@ -98,10 +99,7 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
     function mint(uint256[] memory colorList) external payable {
         uint256 quantity = colorList.length;
 
-        require(msg.value == 2000000000000000 * quantity, "Not enough ETH"); //Mint price is 0.001 Ether
-
-        //Subtract the number of free NFTs minted
-        //Max mint per address set to 11 in the mainnet contract
+        require(msg.value == 2000000000000000 * quantity, "Not enough ETH"); //Mint price is 0.002 Ether
         require(quantity + showFreePlusMint(msg.sender) <= 22, "Max amount of NFTs claimed for this address"); 
         
         uint256 totalMinted = _totalMinted();
@@ -118,12 +116,11 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         teamPoolBalance += (msg.value) * 15 / 100;
         BigBangBalance += (msg.value) * 50 / 100;
 
-
         _safeMint(msg.sender, quantity);
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
-       return "ipfs://bafybeicizdu56kuisq7kciaepdorzt6atelgihomgsbogevt5pqhhfjhx4/";
+       return "ipfs://bafybeibfgeou2i4wwy66hlqbbwl52jgvdx72f4ea6xpixwdlbjvl3jlxzm";
     }
 
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
@@ -138,6 +135,14 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         }
 
         else {
+
+            if (winnersDetermined && checkSmallPrize[colorID - (dynamicArray[0] - 5)].eligible) {
+                return bytes(baseURI).length != 0 ? string(abi.encodePacked(baseURI, _toString(9))) : '';
+            }
+            if (winnersDetermined && checkBigPrize[colorID - (dynamicArray[0] - 5)].eligible) {
+                return bytes(baseURI).length != 0 ? string(abi.encodePacked(baseURI, _toString(10))) : '';
+            }
+
             return bytes(baseURI).length != 0 ? string(abi.encodePacked(baseURI, _toString(colorIPFS))) : '';
         }
     }
@@ -202,26 +207,15 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
 
     function determineWinners(uint256 randomNumber) internal {
 
-        //determine 7 ETH winner -  1 ID
+        //determine 1 ETH winner -  1 ID
         uint256 colorID = randomNumber % 5;
-        check7EthPrize[colorID].eligible = true;
+        checkBigPrize[colorID].eligible = true;
         randomNumber >>= 1;
 
-        //determine 0.5 ETH winners - 6 IDs
+        //determine 0.25 ETH winners - 6 IDs
         for (uint i; i < 1; i++) {
             colorID = randomNumber % 5;
-            while(checkBigPrize[colorID].eligible || check7EthPrize[colorID].eligible) {
-                randomNumber >>= 1;
-                colorID = randomNumber % 5;
-            }
-            checkBigPrize[colorID].eligible = true;
-            randomNumber >>= 1;
-        }
-
-        //determine 0.1 ETH winners - 70 IDs
-        for (uint i; i < 1; i++) {
-            colorID = randomNumber % 5;
-            while(checkBigPrize[colorID].eligible || checkSmallPrize[colorID].eligible || check7EthPrize[colorID].eligible) {
+            while(checkBigPrize[colorID].eligible || checkSmallPrize[colorID].eligible) {
                 randomNumber >>= 1;
                 colorID = randomNumber % 5;
             }
@@ -231,22 +225,8 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         
         if (freeMintCount < 4) {
             uint256 extraCountFromFreeMint = 4 - freeMintCount;
-            teamPoolBalance += extraCountFromFreeMint * extraCountFromFreeMint;
+            teamPoolBalance += (2000000000000000 * extraCountFromFreeMint) * 35 / 100;
         }
-    }
-
-     function withdrawSevenEther(uint256 tokenID) public payable nonReentrant {
-        require(ownerOf(tokenID) == msg.sender);
-
-        uint256 colorID = tokenIDtoColorID[tokenID];
-        uint256 baseID = dynamicArray[0] - 5;
-        uint256 checkID = colorID - baseID; 
-        require(check7EthPrize[checkID].eligible && !check7EthPrize[checkID].withdrawn, 
-        "ID is not eligible for reward or ID has withdrawn the prize");
-        
-        check7EthPrize[checkID].withdrawn = true;
-        (bool sent, ) = msg.sender.call{value: 0.02 ether}("");
-        require(sent, "Failed to send the rewards");
     }
 
     function withdrawBigPrize(uint256 tokenID) public payable nonReentrant {
@@ -254,7 +234,7 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
 
         uint256 colorID = tokenIDtoColorID[tokenID];
         uint256 baseID = dynamicArray[0] - 5;
-        uint256 checkID = colorID - baseID; //check if 0 works - it works!
+        uint256 checkID = colorID - baseID; 
         require(checkBigPrize[checkID].eligible && !checkBigPrize[checkID].withdrawn, 
         "ID is not eligible for reward or ID has withdrawn the prize");
         
@@ -268,7 +248,7 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
 
         uint256 colorID = tokenIDtoColorID[tokenID];
         uint256 baseID = dynamicArray[0] - 5;
-        uint256 checkID = colorID - baseID; //Solidity 0.8 throws an error for underflow/overflow
+        uint256 checkID = colorID - baseID; 
         require(checkSmallPrize[checkID].eligible && !checkSmallPrize[checkID].withdrawn, 
         "ID is not eligible for reward or ID has withdrawn the prize");
         checkSmallPrize[checkID].withdrawn = true;
@@ -285,7 +265,7 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
     }
 
     function withdrawBigBangRewards(uint256 amount) public payable nonReentrant onlyOwner {
-        require(amount <= teamPoolBalance);
+        require(amount <= BigBangBalance);
         
         BigBangBalance -= amount;
         (bool sent,) = address(0xffd0f6289B011C346Da10417B925Aa08a64Aa097).call{value: amount}("");
@@ -308,10 +288,6 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         explodedColorsMetadata[index + 1] = true;
         dynamicArray[index] = dynamicArray[dynamicArray.length - 1];
         dynamicArray.pop();
-    }
-
-    function getContractBalance() public view returns(uint256){
-        return address(this).balance;
     }
 
     function showRemainingColors() public view returns(uint256[] memory) {
