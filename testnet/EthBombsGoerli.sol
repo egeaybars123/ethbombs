@@ -62,7 +62,7 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
     event BombMinted(address indexed minter, uint256 indexed colorID, uint256 tokenID);
 
     //subscriptionID: 71 
-    constructor(uint64 _subscriptionId) VRFConsumerBaseV2(vrfCoordinator) ERC721A("ETH BOMBS", "BOOM") {
+    constructor(uint64 _subscriptionId) VRFConsumerBaseV2(vrfCoordinator) ERC721A("VERSION BOOM", "BOOM") {
         COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
         subscriptionId = _subscriptionId;
     }
@@ -120,7 +120,7 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
-       return "ipfs://bafybeibfgeou2i4wwy66hlqbbwl52jgvdx72f4ea6xpixwdlbjvl3jlxzm";
+       return "ipfs://bafybeibfgeou2i4wwy66hlqbbwl52jgvdx72f4ea6xpixwdlbjvl3jlxzm/";
     }
 
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
@@ -199,7 +199,6 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         if(keccak256(performData) == keccak256(hex'02') && 
             (dynamicArray.length == 1) &&
             winnersDetermined) {
-            //set 2.5 million gas for determineWinners function
             winnersDetermined = false;
             determineWinners(randomWordsForRewards[0]);
         }
@@ -239,7 +238,7 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         "ID is not eligible for reward or ID has withdrawn the prize");
         
         checkBigPrize[checkID].withdrawn = true;
-        (bool sent, ) = msg.sender.call{value: 0.001 ether}("");
+        (bool sent, ) = msg.sender.call{value: 0.02 ether}("");
         require(sent, "Failed to send the rewards");
     }
 
@@ -252,7 +251,7 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
         require(checkSmallPrize[checkID].eligible && !checkSmallPrize[checkID].withdrawn, 
         "ID is not eligible for reward or ID has withdrawn the prize");
         checkSmallPrize[checkID].withdrawn = true;
-        (bool sent, ) = msg.sender.call{value: 0.0007 ether}("");
+        (bool sent, ) = msg.sender.call{value: 0.0017 ether}("");
         require(sent, "Failed to send the rewards");
     }
 
@@ -285,7 +284,10 @@ contract BombsNFT is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
     }
 
     function removeColor(uint256 index) internal {
-        explodedColorsMetadata[index + 1] = true;
+        uint256 colorID = dynamicArray[index] - 5;
+        uint256 popColorID = colorID / 5;
+
+        explodedColorsMetadata[popColorID] = true;
         dynamicArray[index] = dynamicArray[dynamicArray.length - 1];
         dynamicArray.pop();
     }

@@ -66,8 +66,6 @@ contract EthBombs is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
     }
 
     //Change Keepers conditions
-    //Change IPFS URL and tokenURI function
-    //Change address for BigBangRewards
     //Change mintPerAddress for mint and freeMint
 
     function freeMint(bytes32[] calldata _merkleProof, uint256[] memory colorList) public {
@@ -282,7 +280,10 @@ contract EthBombs is ERC721A, ERC721AQueryable, ReentrancyGuard, Ownable, VRFCon
     }
 
     function removeColor(uint256 index) internal {
-        explodedColorsMetadata[index + 1] = true;
+        uint256 colorID = dynamicArray[index] - 111;
+        uint256 popColorID = colorID / 111;
+
+        explodedColorsMetadata[popColorID] = true;
         dynamicArray[index] = dynamicArray[dynamicArray.length - 1];
         dynamicArray.pop();
     }
